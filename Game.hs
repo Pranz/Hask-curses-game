@@ -7,6 +7,7 @@ module Game
   , initGame
   ) where
 
+import Prelude hiding (Right, Left)
 import UI.NCurses
 import Control.Monad.Trans.State
 import Control.Monad.Trans.Class
@@ -15,9 +16,11 @@ import Control.Lens
 import Control.Monad
 import Data.Function (on)
 import qualified Data.Map as M
+import qualified Data.Foldable as F
 
 import Classes
 import Geometry
+import Input
 
 data Entity = Entity
   { _entPosition ::Vector
@@ -28,6 +31,7 @@ makeLenses ''Entity
 data World = World
   { _map  ::M.Map Int (M.Map Int MapObject)
   , _hero ::Entity
+  , _testString ::String
   }
 makeLenses ''World
 
@@ -42,23 +46,40 @@ instance Static Entity where
     blocks = const True
 
 ent       = Entity (Vector 5 3) '@' undefined
-initWorld = World M.empty ent
+initWorld = World M.empty ent "Hej"
 
 initGame :: StateT World Curses ()
 initGame = do
-    lift $ setEcho False
-    w <-lift defaultWindow
+    w <-lift $ do
+        setEcho False
+        defaultWindow
     loop w
 
 loop ::Window -> StateT World Curses ()
 loop w = do
-    heroLoc  <- use $ hero.location
+    heroLocation  <- use $ hero.location
     heroChar <- use $ hero.char
+    str      <- use testString
+    
     lift $ (updateWindow w $ do
-        (flip moveCursor `on` fromIntegral) `overCoords` heroLoc
+        moveCursorToVector heroLocation
         drawString.return $ heroChar
-        moveCursor 0 0)
-    hero.location.x += 1
-    lift render
-    ev <- lift $ (getEvent w Nothing)
-    if (mfilter (== EventCharacter 'q') ev) ==Nothing then loop w else return ()
+        moveCursor 0 0) >> render
+    
+    --prompt for input
+    ev <- lift $ fmap (>>= event2command) . getEvent w $ Nothing
+    
+    --erase previous position
+    lift . updateWindow w $ do
+        moveCursorToVector heroLocation
+        drawString.return $ ' '
+    
+    --handle input
+    F.forM_ ev $ \cmd ->do    
+        case cmd of 
+            Dir dir -> hero.location <>= direction2vector dir
+            _ -> return ()
+    if (mfilter (== Meta Quit) ev) ==Nothing then loop w else return ()
+
+moveCursorToVector :: Vector -> Update ()
+moveCursorToVector = overCoords (flip moveCursor `on` fromIntegral)

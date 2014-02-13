@@ -1,29 +1,21 @@
 {-# Language TemplateHaskell #-}
 
-module Geometry
-  ( Vector(Vector)
-  , x
-  , y
-  , Locatable
-  , location
-  , getLocation
-  , setLocation
-  , negateVector
-  , hypotenuse
-  , distanceFromPoints
-  , overCoords
-  ) where
+module Geometry where
 
 import Data.Monoid
 import Control.Lens
 import Control.Applicative
 import Data.Function (on)
+import Prelude hiding (Left, Right)
+
 import Util
 
 data Vector = Vector {_x ::Int, _y ::Int}
     deriving (Show, Eq, Read)
 makeLenses ''Vector
 
+data Direction = Left | Up | Right | Down | LeftUp | RightUp | LeftDown | RightDown
+    deriving (Show, Eq, Read)
 class Locatable a where
     location    ::Lens' a Vector
     location    = lens getLocation (flip setLocation)
@@ -51,3 +43,14 @@ distanceFromPoints = hypotenuse .: (mappend . negateVector)
 
 overCoords :: (Int -> Int -> a) -> Vector -> a
 overCoords f = liftA2 f (view x) (view y)
+
+direction2vector :: Direction -> Vector
+direction2vector dir = case dir of
+    Left  -> Vector (-1) 0
+    Right -> Vector 1 0
+    Up    -> Vector 0 (-1)
+    Down  -> Vector 0 1
+    LeftUp    -> Vector (-1) (-1)
+    RightUp   -> Vector 1 (-1)
+    LeftDown  -> Vector (-1) 1
+    RightDown -> Vector 1 1

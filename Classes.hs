@@ -17,6 +17,10 @@ module Classes
 import UI.NCurses (ColorID, Curses)
 import Control.Monad.Trans.State
 import Control.Lens
+import Control.Applicative
+import Data.Function (on)
+
+import Util
 
 class Representable e where
     char  ::Lens' e Char
