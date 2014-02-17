@@ -5,10 +5,8 @@ import Control.Monad.Trans.State
 import UI.NCurses
 import qualified Game
 
-data Command = Up | Down | Left | Right | Space
-
 main ::IO ()
-main = do 
+main = do
     runCurses (execStateT Game.initGame Game.initWorld)
     return ()
 

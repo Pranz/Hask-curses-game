@@ -1,4 +1,6 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell           #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE ConstraintKinds           #-}
 
 module Game 
   ( loop
@@ -22,16 +24,17 @@ import Classes
 import Geometry
 import Input
 
+data Wall = Wall
 data Entity = Entity
-  { _entPosition ::Vector
-  , _entChar ::Char
-  , _entColor ::Curses ColorID
+  { _entPosition :: Vector
+  , _entChar     :: Char
+  , _entColor    :: Curses ColorID
   }
 makeLenses ''Entity
 data World = World
-  { _map  ::M.Map Int (M.Map Int MapObject)
-  , _hero ::Entity
-  , _testString ::String
+  { _levelmap        :: M.Map Vector (Is' Representable Static)
+  , _hero       :: Entity
+  , _testString :: String
   }
 makeLenses ''World
 
@@ -45,41 +48,57 @@ instance Representable Entity where
 instance Static Entity where
     blocks = const True
 
+instance Representable Wall where
+    char  = to (const '#')
+    color = undefined
+
+instance Static Wall where
+    blocks = const True
+
 ent       = Entity (Vector 5 3) '@' undefined
-initWorld = World M.empty ent "Hej"
+initWorld = World (M.singleton mempty $ Is' Wall) ent "Hej"
 
 initGame :: StateT World Curses ()
 initGame = do
-    w <-lift $ do
-        setEcho False
-        defaultWindow
-    loop w
+  w <-lift $ do
+    setEcho False
+    defaultWindow
+  loop w
 
 loop ::Window -> StateT World Curses ()
 loop w = do
-    heroLocation  <- use $ hero.location
-    heroChar <- use $ hero.char
-    str      <- use testString
-    
-    lift $ (updateWindow w $ do
-        moveCursorToVector heroLocation
-        drawString.return $ heroChar
-        moveCursor 0 0) >> render
-    
-    --prompt for input
-    ev <- lift $ fmap (>>= event2command) . getEvent w $ Nothing
-    
-    --erase previous position
-    lift . updateWindow w $ do
-        moveCursorToVector heroLocation
-        drawString.return $ ' '
-    
-    --handle input
-    F.forM_ ev $ \cmd ->do    
-        case cmd of 
-            Dir dir -> hero.location <>= direction2vector dir
-            _ -> return ()
-    if (mfilter (== Meta Quit) ev) ==Nothing then loop w else return ()
+  heroLocation  <- use $ hero.location
+  heroChar <- use $ hero.char
+  str      <- use testString
+  levelmap'   <- use levelmap
+  
+  let statics = M.toList levelmap'
+  --rendering
+  lift $ (updateWindow w $ do
+    --hero
+    moveCursorToVector heroLocation
+    drawString.return $ heroChar
+    --statics
+    F.forM_ statics $ \(position, object) -> do
+      moveCursorToVector position
+      drawString.return $ object^.to (conmap' (^.char))
+    moveCursor 0 0) >> render
+  
+  --prompt for input
+  ev <- lift $ getEvent w Nothing
+  let command = ev >>= event2command
+  
+  --erase previous position
+  lift . updateWindow w $ do
+    moveCursorToVector heroLocation
+    drawString.return $ ' '
+  
+  --handle input
+  F.forM_ command $ \cmd -> do    
+    case cmd of 
+      Dir dir -> hero.location <>= direction2vector dir
+      _ -> return ()
+  if (mfilter (== Meta Quit) command) == Nothing then loop w else return ()
 
 moveCursorToVector :: Vector -> Update ()
 moveCursorToVector = overCoords (flip moveCursor `on` fromIntegral)
