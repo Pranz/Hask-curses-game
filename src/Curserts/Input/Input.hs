@@ -1,8 +1,9 @@
-module Input where
+module Curserts.Input.Input where
 
 import UI.NCurses
-import Geometry (Direction(..))
 import Prelude hiding (Left, Right)
+
+import Curserts.Geometry (Direction(..))
 
 data MetaCommand = Quit
     deriving (Show, Read, Eq)

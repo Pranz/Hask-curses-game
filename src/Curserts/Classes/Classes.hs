@@ -7,7 +7,7 @@
 {-# LANGUAGE  FlexibleInstances         #-}
 {-# LANGUAGE  ExistentialQuantification #-}
 
-module Classes where 
+module Curserts.Classes.Classes where 
   
 import UI.NCurses (ColorID, Curses)
 import Control.Monad.Trans.State
@@ -15,7 +15,7 @@ import Control.Lens
 import Control.Applicative
 import Data.Function (on)
 
-import Util
+import Curserts.Util
 
 data Is  c        = forall a. (c a)               => Is   a
 data Is' c1 c2    = forall a. (c1 a, c2 a)        => Is'  a

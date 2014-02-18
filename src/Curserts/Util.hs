@@ -1,4 +1,4 @@
-module Util where
+module Curserts.Util where
 
 import Control.Lens
 

@@ -4,7 +4,7 @@ module Main where
 import Control.Monad.Trans.State
 import System.Random
 import UI.NCurses
-import qualified Game
+import qualified Curserts.Game as G
 
 main :: IO ()
 main = do
@@ -12,15 +12,15 @@ main = do
 	putStrLn ("Seed: " ++ show initialRandomGen)
 	world <- runCurses $ do
 		window <- initCurses
-		initialized <- execStateT Game.initialize (Game.initWorld initialRandomGen)
-		execStateT (Game.update window) initialized
-	mapM_ putStrLn (Game._gamelog world)
+		initialized <- execStateT (G.initialize window) (G.initWorld initialRandomGen)
+		execStateT (G.update window) initialized
+	mapM_ putStrLn (G._gamelog world)
 	return ()
 
 initCurses :: Curses Window
 initCurses = do
 	setEcho False
-	newWindow Game.window_height Game.window_width 0 0
+	newWindow G.window_height G.window_width 1 1
   
 --main :: IO ()
 --main = runCurses $ do

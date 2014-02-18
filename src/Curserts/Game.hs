@@ -2,7 +2,7 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE ConstraintKinds           #-}
 
-module Game 
+module Curserts.Game 
   ( update
   , initWorld
   , World
@@ -18,7 +18,7 @@ import Control.Monad.Trans.State
 import Control.Monad.Trans.Class
 import Control.Monad
 import Control.Lens
-import Control.Monad
+import Control.Applicative (liftA2)
 import Data.Function (on)
 import Data.Monoid
 import Data.Maybe
@@ -26,13 +26,15 @@ import qualified System.Random as R
 import qualified Data.Map as M
 import qualified Data.Foldable as F
 
-import Classes
-import Geometry
-import Input
-import Util
+import Curserts.Classes.Classes
+import Curserts.Input.Input
+import Curserts.Geometry
+import Curserts.Util
 
-window_width  = 20
-window_height = 16
+window_width :: Integer
+window_width  = fromInteger 60
+window_height :: Integer
+window_height = fromInteger 24
 
 greenOnBlack = newColorID ColorGreen ColorBlack 1
 
@@ -45,7 +47,7 @@ data Entity = Entity
   }
 makeLenses ''Entity
 data World = World
-  { _levelmap        :: M.Map Vector (Is MapObject)
+  { _levelmap   :: M.Map Vector (Is MapObject)
   , _hero       :: Entity
   , _testString :: String
   , _gamelog    :: [String]
@@ -66,7 +68,7 @@ instance Static Entity where
 
 instance Representable Wall where
     char  = constLens '#'
-    color = undefined
+    color = constLens defaultColorID
 
 instance Static Wall where
     blocks = constLens True
@@ -81,8 +83,8 @@ initmap   = M.fromList
 ent       = Entity (Vector 5 3) '@' undefined
 initWorld = World initmap ent "Hej" [] 0
 
-initialize :: StateT World Curses ()
-initialize = do
+initialize :: Window -> StateT World Curses ()
+initialize w = do
   grnblack <- lift greenOnBlack
   hero.color .= grnblack
 
@@ -93,6 +95,7 @@ update w = do
   let statics = M.toList levelmap'
   
   turnNumber += 1
+  use (hero.location) >>= appendToLog "Position: "
   
   heroLocation  <- use $ hero.location
   heroChar      <- use $ hero.char
@@ -139,7 +142,8 @@ moveCursorToVector = overCoords (flip moveCursor `on` fromIntegral)
 guardfilter p x = (guard.p) x >> return x
 
 isValidPosition :: Vector -> Bool
-isValidPosition = overCoords (on (&&) (>= 0))
+isValidPosition vec@(Vector xx yy) = overCoords (on (&&) (>= 0) ) vec && (fromIntegral xx < window_width) && (fromIntegral (yy+1) < window_height)
+
 
 appendToLog :: Show a => String -> a -> StateT World Curses ()
 appendToLog description value = do
@@ -163,3 +167,4 @@ randoms n = do
 
 randomRs n = do
   sequence. take n. repeat. randomR
+  

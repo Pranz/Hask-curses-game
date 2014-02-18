@@ -1,6 +1,6 @@
 {-# Language TemplateHaskell #-}
 
-module Geometry where
+module Curserts.Geometry where
 
 import Data.Monoid
 import Control.Lens
@@ -8,7 +8,7 @@ import Control.Applicative
 import Data.Function (on)
 import Prelude hiding (Left, Right)
 
-import Util
+import Curserts.Util
 
 data Vector = Vector {_x ::Int, _y ::Int}
     deriving (Show, Eq, Read, Ord)
