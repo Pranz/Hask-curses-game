@@ -34,7 +34,7 @@ data Entity = Entity
   }
 makeLenses ''Entity
 data World = World
-  { _levelmap        :: M.Map Vector (Is' Representable Static)
+  { _levelmap        :: M.Map Vector (Is MapObject)
   , _hero       :: Entity
   , _testString :: String
   }
@@ -56,11 +56,13 @@ instance Representable Wall where
 
 instance Static Wall where
     blocks = to.const $ True
+    
+instance MapObject Wall
 
 initmap   = M.fromList
-  [(Vector 5 5, Is' Wall)
-  ,(Vector 4 5, Is' Wall)
-  ,(Vector 7 3, Is' Wall)
+  [(Vector 5 5, Is Wall)
+  ,(Vector 4 5, Is Wall)
+  ,(Vector 7 3, Is Wall)
   ]
 ent       = Entity (Vector 5 3) '@' undefined
 initWorld = World initmap ent "Hej"
@@ -88,7 +90,7 @@ loop w = do
     --statics
     F.forM_ statics $ \(position, object) -> do
       moveCursorToVector position
-      drawString.return $ conmap' (view char) object
+      drawString.return $ conmap (view char) object
     moveCursor 0 0) >> render
   
   --prompt for input
@@ -106,7 +108,7 @@ loop w = do
     case cmd of
       Dir dir -> do
         let newPos                = heroLocation <> direction2vector dir
-        let positionIsBlocked pos = (M.lookup pos levelmap')^..traverse.fromConstraint' blocks
+        let positionIsBlocked pos = (M.lookup pos levelmap')^..traverse.fromConstraint blocks
         let occupied              = (== [True]) $ maybe [True] positionIsBlocked (guardfilter isValidPosition newPos)
         unless occupied $ do 
           hero.location .= newPos

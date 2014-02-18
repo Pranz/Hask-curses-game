@@ -47,3 +47,5 @@ class Agent e w | e -> w where
 
 class Static e where
     blocks  :: Getter e Bool
+    
+class (Static a, Representable a) => MapObject a where
