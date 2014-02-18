@@ -30,13 +30,20 @@ conmap' f (Is' x) = f x
 conmap'' :: forall b c1 c2 c3. (forall a. (c1 a, c2 a, c3 a) => a -> b) -> Is'' c1 c2 c3 -> b
 conmap'' f (Is'' x) = f x
 
+fromConstraint :: forall ctx b.    (forall a. ctx a => Getter a b)        -> Getter (Is ctx) b
+fromConstraint lns  = to (conmap  (^.lns))
+
+fromConstraint' :: forall c1 c2 b. (forall a. (c1 a, c2 a) => Getter a b) -> Getter (Is' c1 c2) b
+fromConstraint' lns = to (conmap' (^.lns))
+
+--fromConstraint' polylens other = polylens.to (conmap' (^.other))
+
 class Representable e where
-    char  :: Getter e Char
-    color :: Getter e (Curses ColorID)
+    char    :: Getter e Char
+    color   :: Getter e (Curses ColorID)
     
 class Agent e w | e -> w where
-    actWith:: e -> StateT w Curses ()
+    actWith :: e -> StateT w Curses ()
 
 class Static e where
-    blocks :: e -> Bool
-
+    blocks  :: Getter e Bool

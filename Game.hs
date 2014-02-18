@@ -13,10 +13,12 @@ import Prelude hiding (Right, Left)
 import UI.NCurses
 import Control.Monad.Trans.State
 import Control.Monad.Trans.Class
-import Data.Monoid
+import Control.Monad
 import Control.Lens
 import Control.Monad
 import Data.Function (on)
+import Data.Monoid
+import Data.Maybe
 import qualified Data.Map as M
 import qualified Data.Foldable as F
 
@@ -46,17 +48,22 @@ instance Representable Entity where
     color = entColor
 
 instance Static Entity where
-    blocks = const True
+    blocks = to.const $ True
 
 instance Representable Wall where
     char  = to (const '#')
     color = undefined
 
 instance Static Wall where
-    blocks = const True
+    blocks = to.const $ True
 
+initmap   = M.fromList
+  [(Vector 5 5, Is' Wall)
+  ,(Vector 4 5, Is' Wall)
+  ,(Vector 7 3, Is' Wall)
+  ]
 ent       = Entity (Vector 5 3) '@' undefined
-initWorld = World (M.singleton mempty $ Is' Wall) ent "Hej"
+initWorld = World initmap ent "Hej"
 
 initGame :: StateT World Curses ()
 initGame = do
@@ -68,9 +75,9 @@ initGame = do
 loop ::Window -> StateT World Curses ()
 loop w = do
   heroLocation  <- use $ hero.location
-  heroChar <- use $ hero.char
-  str      <- use testString
-  levelmap'   <- use levelmap
+  heroChar      <- use $ hero.char
+  str           <- use testString
+  levelmap'     <- use levelmap
   
   let statics = M.toList levelmap'
   --rendering
@@ -81,7 +88,7 @@ loop w = do
     --statics
     F.forM_ statics $ \(position, object) -> do
       moveCursorToVector position
-      drawString.return $ object^.to (conmap' (^.char))
+      drawString.return $ conmap' (view char) object
     moveCursor 0 0) >> render
   
   --prompt for input
@@ -94,11 +101,23 @@ loop w = do
     drawString.return $ ' '
   
   --handle input
-  F.forM_ command $ \cmd -> do    
-    case cmd of 
-      Dir dir -> hero.location <>= direction2vector dir
+  F.forM_ command $ \cmd -> do
+    
+    case cmd of
+      Dir dir -> do
+        let newPos                = heroLocation <> direction2vector dir
+        let positionIsBlocked pos = (M.lookup pos levelmap')^..traverse.fromConstraint' blocks
+        let occupied              = (== [True]) $ maybe [True] positionIsBlocked (guardfilter isValidPosition newPos)
+        unless occupied $ do 
+          hero.location .= newPos
+      
       _ -> return ()
-  if (mfilter (== Meta Quit) command) == Nothing then loop w else return ()
+  if isNothing (mfilter (== Meta Quit) command) then loop w else return ()
 
 moveCursorToVector :: Vector -> Update ()
 moveCursorToVector = overCoords (flip moveCursor `on` fromIntegral)
+
+guardfilter p x = (guard.p) x >> return x
+
+isValidPosition :: Vector -> Bool
+isValidPosition = overCoords (on (&&) (>= 0))

@@ -11,7 +11,7 @@ import Prelude hiding (Left, Right)
 import Util
 
 data Vector = Vector {_x ::Int, _y ::Int}
-    deriving (Show, Eq, Read)
+    deriving (Show, Eq, Read, Ord)
 makeLenses ''Vector
 
 data Direction = Left | Up | Right | Down | LeftUp | RightUp | LeftDown | RightDown
