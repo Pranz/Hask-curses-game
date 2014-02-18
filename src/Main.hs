@@ -2,14 +2,26 @@
 module Main where
 
 import Control.Monad.Trans.State
+import System.Random
 import UI.NCurses
 import qualified Game
 
-main ::IO ()
+main :: IO ()
 main = do
-    runCurses (execStateT Game.initGame Game.initWorld)
-    return ()
+	initialRandomGen <- getStdGen
+	putStrLn ("Seed: " ++ show initialRandomGen)
+	world <- runCurses $ do
+		window <- initCurses
+		initialized <- execStateT Game.initialize (Game.initWorld initialRandomGen)
+		execStateT (Game.update window) initialized
+	mapM_ putStrLn (Game._gamelog world)
+	return ()
 
+initCurses :: Curses Window
+initCurses = do
+	setEcho False
+	newWindow Game.window_height Game.window_width 0 0
+  
 --main :: IO ()
 --main = runCurses $ do
 --    setEcho False

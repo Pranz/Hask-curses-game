@@ -3,10 +3,13 @@
 {-# LANGUAGE ConstraintKinds           #-}
 
 module Game 
-  ( loop
+  ( update
   , initWorld
   , World
-  , initGame
+  , window_width 
+  , window_height 
+  , _gamelog
+  , initialize
   ) where
 
 import Prelude hiding (Right, Left)
@@ -19,24 +22,35 @@ import Control.Monad
 import Data.Function (on)
 import Data.Monoid
 import Data.Maybe
+import qualified System.Random as R
 import qualified Data.Map as M
 import qualified Data.Foldable as F
 
 import Classes
 import Geometry
 import Input
+import Util
+
+window_width  = 20
+window_height = 16
+
+greenOnBlack = newColorID ColorGreen ColorBlack 1
+
 
 data Wall = Wall
 data Entity = Entity
   { _entPosition :: Vector
   , _entChar     :: Char
-  , _entColor    :: Curses ColorID
+  , _entColor    :: ColorID
   }
 makeLenses ''Entity
 data World = World
   { _levelmap        :: M.Map Vector (Is MapObject)
   , _hero       :: Entity
   , _testString :: String
+  , _gamelog    :: [String]
+  , _turnNumber :: Int
+  , _randomgen  :: R.StdGen
   }
 makeLenses ''World
 
@@ -48,14 +62,14 @@ instance Representable Entity where
     color = entColor
 
 instance Static Entity where
-    blocks = to.const $ True
+    blocks = constLens True
 
 instance Representable Wall where
-    char  = to (const '#')
+    char  = constLens '#'
     color = undefined
 
 instance Static Wall where
-    blocks = to.const $ True
+    blocks = constLens True
     
 instance MapObject Wall
 
@@ -65,29 +79,32 @@ initmap   = M.fromList
   ,(Vector 7 3, Is Wall)
   ]
 ent       = Entity (Vector 5 3) '@' undefined
-initWorld = World initmap ent "Hej"
+initWorld = World initmap ent "Hej" [] 0
 
-initGame :: StateT World Curses ()
-initGame = do
-  w <-lift $ do
-    setEcho False
-    defaultWindow
-  loop w
+initialize :: StateT World Curses ()
+initialize = do
+  grnblack <- lift greenOnBlack
+  hero.color .= grnblack
 
-loop ::Window -> StateT World Curses ()
-loop w = do
-  heroLocation  <- use $ hero.location
-  heroChar      <- use $ hero.char
-  str           <- use testString
+update :: Window -> StateT World Curses ()
+update w = do
   levelmap'     <- use levelmap
   
   let statics = M.toList levelmap'
+  
+  turnNumber += 1
+  
+  heroLocation  <- use $ hero.location
+  heroChar      <- use $ hero.char
+  heroColor     <- use $ hero.color
   --rendering
   lift $ (updateWindow w $ do
+    setColor heroColor
     --hero
     moveCursorToVector heroLocation
     drawString.return $ heroChar
     --statics
+    setColor defaultColorID
     F.forM_ statics $ \(position, object) -> do
       moveCursorToVector position
       drawString.return $ conmap (view char) object
@@ -114,7 +131,7 @@ loop w = do
           hero.location .= newPos
       
       _ -> return ()
-  if isNothing (mfilter (== Meta Quit) command) then loop w else return ()
+  if isNothing (mfilter (== Meta Quit) command) then update w else return ()
 
 moveCursorToVector :: Vector -> Update ()
 moveCursorToVector = overCoords (flip moveCursor `on` fromIntegral)
@@ -123,3 +140,26 @@ guardfilter p x = (guard.p) x >> return x
 
 isValidPosition :: Vector -> Bool
 isValidPosition = overCoords (on (&&) (>= 0))
+
+appendToLog :: Show a => String -> a -> StateT World Curses ()
+appendToLog description value = do
+  gamelog %= ((description ++ show value) :)
+  
+random :: R.Random a => StateT World Curses a
+random = do
+  (myrandom, newgen) <- use (randomgen.to R.random)
+  randomgen .= newgen
+  return myrandom
+  
+randomR :: R.Random a => (a,a) -> StateT World Curses a
+randomR bounds = do
+  (myrandom, newgen) <- use (randomgen.to (R.randomR bounds))
+  randomgen .= newgen
+  return myrandom
+
+randoms :: R.Random a => Int -> StateT World Curses [a]
+randoms n = do
+  sequence. take n. repeat $ random
+
+randomRs n = do
+  sequence. take n. repeat. randomR

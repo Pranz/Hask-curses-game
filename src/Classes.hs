@@ -39,13 +39,13 @@ fromConstraint' lns = to (conmap' (^.lns))
 --fromConstraint' polylens other = polylens.to (conmap' (^.other))
 
 class Representable e where
-    char    :: Getter e Char
-    color   :: Getter e (Curses ColorID)
+    char    :: Lens' e Char
+    color   :: Lens' e ColorID
     
 class Agent e w | e -> w where
     actWith :: e -> StateT w Curses ()
 
 class Static e where
-    blocks  :: Getter e Bool
+    blocks  :: Lens' e Bool
     
 class (Static a, Representable a) => MapObject a where

@@ -14,8 +14,13 @@ data Vector = Vector {_x ::Int, _y ::Int}
     deriving (Show, Eq, Read, Ord)
 makeLenses ''Vector
 
+data Rectangle = Rectangle {_rectanglePosition :: Vector, _rectangleDimensions :: Vector}
+    deriving (Show, Eq, Read, Ord)
+makeLenses ''Rectangle
+
 data Direction = Left | Up | Right | Down | LeftUp | RightUp | LeftDown | RightDown
     deriving (Show, Eq, Read)
+    
 class Locatable a where
     location    ::Lens' a Vector
     location    = lens getLocation (flip setLocation)
@@ -31,6 +36,9 @@ instance Monoid Vector where
 instance Locatable Vector where
     getLocation = id
     setLocation = const
+    
+instance Locatable Rectangle where
+    location = rectanglePosition
 
 hypotenuse ::(Floating b, Locatable a) => a -> b
 hypotenuse = liftA2 ((sqrt . fromIntegral .: (+)) `on` (^2)) (^.location.x) (^.location.y)
@@ -54,3 +62,9 @@ direction2vector dir = case dir of
     RightUp   -> Vector 1 (-1)
     LeftDown  -> Vector (-1) 1
     RightDown -> Vector 1 1
+
+rectangleArea :: Rectangle -> Int
+rectangleArea =  overCoords (*) . _rectangleDimensions
+
+secondRectanglePosition :: Rectangle -> Vector
+secondRectanglePosition = liftA2 mappend _rectanglePosition _rectangleDimensions
