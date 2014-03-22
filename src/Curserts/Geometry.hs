@@ -7,6 +7,8 @@ import Control.Lens
 import Control.Applicative
 import Data.Function (on)
 import Prelude hiding (Left, Right)
+import System.Random
+import Control.Monad (join)
 
 import Curserts.Util
 
@@ -39,6 +41,14 @@ instance Locatable Vector where
     
 instance Locatable Rectangle where
     location = rectanglePosition
+    
+instance Random Vector where
+    random g = (Vector x y, g'')
+        where (x, g')  = random g
+              (y, g'') = random g'
+    randomR ((Vector x1 y1), (Vector x2 y2)) g = (Vector x y, g'')
+        where (x, g')  = randomR (x1, x2) g
+              (y, g'') = randomR (y1, y2) g'
 
 hypotenuse ::(Floating b, Locatable a) => a -> b
 hypotenuse = liftA2 ((sqrt . fromIntegral .: (+)) `on` (^2)) (^.location.x) (^.location.y)
@@ -68,3 +78,9 @@ rectangleArea =  overCoords (*) . _rectangleDimensions
 
 secondRectanglePosition :: Rectangle -> Vector
 secondRectanglePosition = liftA2 mappend _rectanglePosition _rectangleDimensions
+
+recHasPoint :: Rectangle -> Vector -> Bool
+recHasPoint (Rectangle (Vector x1 y1) (Vector w1 h1)) (Vector x2 y2) = x1 >= x2 && (x1 + w1) <= x2 && y1 >= y2 && (y1 + h1) <= y2
+
+intersectsWith :: Rectangle -> Rectangle -> Bool
+intersectsWith (Rectangle (Vector x y) (Vector w h)) rectangle = any (recHasPoint rectangle) [Vector x y, Vector (x + w) y, Vector x (y + h), Vector (x + w) (y + h)]

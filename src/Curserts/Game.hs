@@ -1,4 +1,3 @@
-{-# LANGUAGE TemplateHaskell           #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE ConstraintKinds           #-}
 
@@ -10,6 +9,7 @@ module Curserts.Game
   , window_height 
   , _gamelog
   , initialize
+  , initLevel
   ) where
 
 import Prelude hiding (Right, Left)
@@ -17,7 +17,7 @@ import UI.NCurses
 import Control.Monad.Trans.State
 import Control.Monad.Trans.Class
 import Control.Monad
-import Control.Lens
+import Control.Lens hiding (Level, none)
 import Control.Applicative (liftA2)
 import Data.Function (on)
 import Data.Monoid
@@ -30,6 +30,8 @@ import Curserts.Classes.Classes
 import Curserts.Input.Input
 import Curserts.Geometry
 import Curserts.Util
+import Curserts.Level.Room
+import Curserts.Data
 
 window_width :: Integer
 window_width  = fromInteger 60
@@ -38,42 +40,17 @@ window_height = fromInteger 24
 
 greenOnBlack = newColorID ColorGreen ColorBlack 1
 
+generateList :: Monad m => Int -> ([a] -> StateT s m [a]) -> StateT s m [a]
+generateList n f = gen n f []
+  where gen 0 _ xs  = return xs
+        gen n f xs = f xs >>= gen (n-1) f
 
-data Wall = Wall
-data Entity = Entity
-  { _entPosition :: Vector
-  , _entChar     :: Char
-  , _entColor    :: ColorID
-  }
-makeLenses ''Entity
-data World = World
-  { _levelmap   :: M.Map Vector (Is MapObject)
-  , _hero       :: Entity
-  , _testString :: String
-  , _gamelog    :: [String]
-  , _turnNumber :: Int
-  , _randomgen  :: R.StdGen
-  }
-makeLenses ''World
-
-instance Locatable Entity where
-    location = entPosition
-
-instance Representable Entity where
-    char  = entChar
-    color = entColor
-
-instance Static Entity where
-    blocks = constLens True
-
-instance Representable Wall where
-    char  = constLens '#'
-    color = constLens defaultColorID
-
-instance Static Wall where
-    blocks = constLens True
-    
-instance MapObject Wall
+expandStateful :: Monad m => Int -> ([a] -> a -> Bool) -> StateT s m a -> StateT s m [a]
+expandStateful n p statefulVal = generateList n $ \xs -> do
+  mystate <- statefulVal
+  case p xs mystate of
+    True  -> return (mystate : xs)
+    false -> return xs
 
 initmap   = M.fromList
   [(Vector 5 5, Is Wall)
@@ -83,10 +60,27 @@ initmap   = M.fromList
 ent       = Entity (Vector 5 3) '@' undefined
 initWorld = World initmap ent "Hej" [] 0
 
-initialize :: Window -> StateT World Curses ()
-initialize w = do
+testlevel = Level [simpleRoom] 0
+
+initialize :: StateT World Curses ()
+initialize = do
   grnblack <- lift greenOnBlack
   hero.color .= grnblack
+  initLevel testlevel
+  
+initLevel :: Level -> StateT World Curses ()
+initLevel level = do
+  rectangles <- expandStateful (level^.rooms.to length) (\recs rec -> none (intersectsWith rec) recs) $ do
+    position   <- randomR (Vector 0 0, Vector (fromIntegral window_width) (fromIntegral window_height))
+    dimensions <- randomR (Vector 7 7, Vector 13 13)
+    return $ Rectangle position dimensions
+  appendToLog "Rectangles: " rectangles
+  appendToLog "Rooms: "     (level^.rooms.to length)
+  F.forM_ (zip (level^.rooms) rectangles) $ \(rm, rectangle) -> do
+    let (Rectangle (Vector rec_x rec_y) (Vector rec_width rec_height)) = rectangle
+    F.forM_ [0..rec_width] $ \i -> do
+      appendToLog "position: " (Vector (i+rec_x) (rec_y))
+      levelmap %= M.insert (Vector (i+rec_x) rec_y) (Is Wall)
 
 update :: Window -> StateT World Curses ()
 update w = do
@@ -95,7 +89,6 @@ update w = do
   let statics = M.toList levelmap'
   
   turnNumber += 1
-  use (hero.location) >>= appendToLog "Position: "
   
   heroLocation  <- use $ hero.location
   heroChar      <- use $ hero.char
@@ -168,3 +161,6 @@ randoms n = do
 randomRs n = do
   sequence. take n. repeat. randomR
   
+choice ls = do
+  index <- randomR (0,length ls - 1)
+  return $ ls !! index

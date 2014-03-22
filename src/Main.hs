@@ -12,7 +12,7 @@ main = do
 	putStrLn ("Seed: " ++ show initialRandomGen)
 	world <- runCurses $ do
 		window <- initCurses
-		initialized <- execStateT (G.initialize window) (G.initWorld initialRandomGen)
+		initialized <- execStateT G.initialize (G.initWorld initialRandomGen)
 		execStateT (G.update window) initialized
 	mapM_ putStrLn (G._gamelog world)
 	return ()

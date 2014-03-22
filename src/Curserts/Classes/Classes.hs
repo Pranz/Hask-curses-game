@@ -42,10 +42,10 @@ class Representable e where
     char    :: Lens' e Char
     color   :: Lens' e ColorID
     
-class Agent e w | e -> w where
+class Agent e where
     actWith :: e -> StateT w Curses ()
 
 class Static e where
     blocks  :: Lens' e Bool
     
-class (Static a, Representable a) => MapObject a where
+class (Static a, Representable a)  => MapObject a where
