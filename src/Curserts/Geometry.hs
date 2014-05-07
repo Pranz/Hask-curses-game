@@ -80,7 +80,15 @@ secondRectanglePosition :: Rectangle -> Vector
 secondRectanglePosition = liftA2 mappend _rectanglePosition _rectangleDimensions
 
 recHasPoint :: Rectangle -> Vector -> Bool
-recHasPoint (Rectangle (Vector x1 y1) (Vector w1 h1)) (Vector x2 y2) = x1 >= x2 && (x1 + w1) <= x2 && y1 >= y2 && (y1 + h1) <= y2
+recHasPoint (Rectangle (Vector x1 y1) (Vector w1 h1)) (Vector x2 y2) = x1 <= x2 && (x1 + w1) >= x2 && y1 <= y2 && (y1 + h1) >= y2
 
 intersectsWith :: Rectangle -> Rectangle -> Bool
-intersectsWith (Rectangle (Vector x y) (Vector w h)) rectangle = any (recHasPoint rectangle) [Vector x y, Vector (x + w) y, Vector x (y + h), Vector (x + w) (y + h)]
+intersectsWith r1 r2 = r1x1 < r2x2 && r1x2 > r2x1 && r1y1 < r2y2 && r1y2 > r2y1
+    where r1x1 = r1^.location.x
+          r1x2 = (r1^.location.x) +(r1^.rectangleDimensions.x)
+          r1y1 = r1^.location.y
+          r1y2 = (r1^.location.y) +(r1^.rectangleDimensions.y)
+          r2x1 = r2^.location.x
+          r2x2 = (r2^.location.x) +(r2^.rectangleDimensions.x)
+          r2y1 = r2^.location.y
+          r2y2 = (r2^.location.y) +(r2^.rectangleDimensions.y)

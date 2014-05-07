@@ -7,7 +7,7 @@ import Data.Map as M
 import UI.NCurses
 import System.Random (StdGen)
 
-import Curserts.Classes.Classes
+import Curserts.Types.Classes
 import Curserts.Geometry
 import Curserts.Util (constLens)
 
@@ -24,6 +24,7 @@ data World = World
   , _testString :: String
   , _gamelog    :: [String]
   , _turnNumber :: Int
+  , _rooms      :: [(Vector, Vector)]
   , _randomgen  :: StdGen
   }
 makeLenses ''World

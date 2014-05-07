@@ -4,11 +4,16 @@
 module Curserts.Level.Room where
 
 import Data.Map as M
-import Curserts.Classes.Classes
+import Curserts.Types.Classes
 import Control.Lens (makeLenses)
 
 import Curserts.Data
 import Curserts.Geometry
+
+minRoomWidth  = 7  :: Int
+maxRoomWidth  = 10 :: Int
+minRoomHeight = 7  :: Int
+maxRoomHeight = 10 :: Int
 
 data Room = Room
 	{ _roomObjects  :: Rectangle -> M.Map Vector (Is MapObject)
